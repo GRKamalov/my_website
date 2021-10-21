@@ -1,0 +1,220 @@
+---
+categories:  
+- ""    #the front matter should be like the one found in, e.g., blog2.md. It cannot be like the normal Rmd we used
+- ""
+date: "2021-10-20"
+description: My projects in Data Science and Machine Learning # the title that will show up once someone gets to this page
+draft: false
+image: spices.jpg # save picture in \static\img\blogs. Acceptable formats= jpg, jpeg, or png . Your iPhone pics wont work
+
+keywords: ""
+slug: ds # slug is the shorthand URL address... no spaces plz
+title: My projects
+---
+
+
+
+<div id="whats-it-all-about" class="section level1">
+<h1>What’s it all about?</h1>
+<p>Apart from my data endeavours at London Business School, I received some training in Data Science and Machine Learning during my undergraduate years. Here you will see some of my efforts related to the prominent <a href="https://web.stanford.edu/~hastie/ElemStatLearn/">Elements of Statistical Learning</a> textbook by Hastie, Tibshirani et al. Here I will present some examples of my work, plot reproductions and ML algorithm implementations, including <code>boosting,</code> <code>LOESS</code> and many more.</p>
+</div>
+<div id="lasso---evolution-of-coefficients-with-the-penalty-constant" class="section level1">
+<h1>LASSO - evolution of coefficients with the penalty constant</h1>
+<p>Lasso is a very powerful tool for shrinkage of regression models with many explanatory variables. The algorithm performs the tasks of <em>variable selection</em> and <em>dimension reduction</em> for the set of predictors, yielding sparse models with high interpretability. Mathematically, LASSO is in fact a convex optimization proble, summarized as follows:</p>
+<p><span class="math display">\[\hat{\beta}^{LASSO} = argmin_\beta \bigg\{0.5\sum_{i=1}^N(y_i-\beta_0-\sum_{j=1}^px_{ij}\beta_j)^2+\lambda\sum_{j=1}^p|\beta_j|\bigg\}\]</span>
+So, let’s look how the dimension reduction works on practice, once we try to adjust the shrinkage parameter <span class="math inline">\(\lambda\)</span>!</p>
+<pre class="r"><code>rm(list=ls())
+library(data.table)
+library(glmpath)
+library(latex2exp)
+data(heart.data)
+print(&quot;I have no idea how to hide the console output which keeps appearing below this line. Yes, I tried the \014 command...&quot;)</code></pre>
+<pre><code>## [1] &quot;I have no idea how to hide the console output which keeps appearing below this line. Yes, I tried the \f command...&quot;</code></pre>
+<pre class="r"><code>attach(heart.data)
+cat(&quot;\014&quot;)</code></pre>
+<div style="page-break-after: always;"></div>
+<pre class="r"><code>data_x &lt;-heart.data$x
+data_x &lt;-data_x[,-6]
+data_x &lt;-data_x[,-4]
+data_y &lt;- heart.data$y
+reg &lt;- glmpath(x=data_x,y=data_y,family=binomial)
+par(mar = c(5, 5, 2, 5),col.lab=&quot;white&quot;, cex = 0.9)
+plot.glmpath(reg, type=&quot;coefficients&quot;,xlimit=2.35,col=c(&quot;black&quot;,&quot;orange&quot;,&quot;grey&quot;,&quot;green&quot;,&quot;brown&quot;,&quot;red&quot;,&quot;blue&quot;),main=&quot;&quot;,font=8)
+title(cex.lab=0.001)
+title(xlab=TeX(&#39;$|\\beta(\\lambda)|$&#39;),ylab=TeX(&#39;Coefficients $\\beta_j(\\lambda)$&#39;),col.lab=&quot;black&quot;)</code></pre>
+<p><img src="/blogs/ds_projects_files/figure-html/unnamed-chunk-1-1.png" width="768" /></p>
+<pre class="r"><code>cat(&quot;\014&quot;)</code></pre>
+<p>
+##Nonparametric Kernel regressions</p>
+<p>Using linear regression, we implicitly assume that marginal effects of our predictors are constant - at least, without feature engineering? But what if they are not? And, more broadly, what if we allow the marginal effects of predictors to be free from a particular functional form? Thus, we arrive at <strong>nonparametric Kernel regressions</strong>.</p>
+<p>Here, you can see the marginal effects of various predictors on the level of atmospheric ozone - quite a scientific task. Especially, we can see how these marginal effects <em>change</em> with the evolution of other predictors. So, let’s have a look:</p>
+<pre class="r"><code>library(data.table)
+library(np)
+library(latex2exp)
+library(lattice)
+
+
+rm(list = ls())
+library(lattice)
+set.seed(1)
+data &lt;- fread(&quot;http://web.stanford.edu/~oleg2/hse/ozone/ozone.data&quot;)
+data$cubicroot &lt;- (data$ozone)**(1/3)
+
+data$Temp &lt;- equal.count(data$temperature, number=4, overlap=0.15)
+data$Wind &lt;- equal.count(data$wind, number=4, overlap=0.15)
+par(cex=0.5)
+plt &lt;- xyplot(cubicroot ~ radiation | Temp*Wind, data = data,
+              xlab = &quot;Solar radiation (langleys)&quot;,
+              ylab = &quot;Cube root ozon (cube root ppb)&quot;,
+              panel = function(x, y) {
+                 panel.grid(h =- 1, v = 2)
+                   localreg &lt;- npreg(y~x,regtype=&quot;ll&quot;,gradients=TRUE)
+                   newdata = data.table(x=x,y=predict(localreg))
+                   newdata &lt;- newdata[order(x)]
+                   panel.lines(newdata$x,newdata$y)
+              },drop.unused.levels = TRUE
+)
+update(plt, par.settings = list(cex=5,fontsize = list(text =8, points = 12)))</code></pre>
+<p><img src="/blogs/ds_projects_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+</div>
+<div id="how-to-perform-variable-selection" class="section level1">
+<h1>How to perform variable selection?</h1>
+<p>Here is an example of a very interesting dataset, concerned with decoding of phonemes (i.e. signal processsing). Each signal is discretized (i.e., there are a number of discrete points out of the whole transmission), and a spline basis of variable complexity is used to restore the original signal. The question of choosing the optimal cardinality of basis function set shows us a very good example of <strong>bias-variance trade-off</strong>. At first, increased complexity gives us enhanced precision, but afterwards something very opposite starts to happen… So, let’s have a look together!</p>
+<pre class="r"><code>rm(list=ls())
+library(data.table)
+library(splines)
+library(latex2exp)
+#Since the dataset is in a .zip archive, I download it to the local machine and then read it from the directory.
+set.seed(125)
+data &lt;- fread(&quot;phoneme.data&quot;)
+              
+#prepare and split the data
+data &lt;- data[g == &quot;aa&quot; | g == &quot;ao&quot;]
+data[, speaker := NULL]
+data[,row.names := NULL]
+data[, y := ifelse(g == &quot;aa&quot;, 1,0)]
+data[, g := NULL]
+y_aux &lt;- cbind(data[,y])
+data[, (colnames(data)) := lapply(.SD, scale), .SDcols=colnames(data)]
+data[,y := NULL]
+data[,y := y_aux]
+train_sample &lt;- sample(1:dim(data)[1],size = 1000)
+data_train &lt;- data[train_sample]
+data_test &lt;- data[-train_sample]
+
+#proceed with the modelling
+metrics &lt;- data.table(aiclog =numeric(),llic = numeric(),llic_test = numeric(),aicbin = numeric(),lbin = numeric(),lbin_test = numeric())
+n_basis &lt;- c(2,4,8,16,32,64,128,256)
+spline_grid &lt;- seq(1,256,by = 1)
+y_train &lt;- cbind(data_train$y)
+data_train[,y := NULL]
+y_test &lt;- cbind(data_test$y)
+data_test[,y := NULL]
+for (item in n_basis){
+
+  spline_basis &lt;- ns(spline_grid, df = item+2, intercept = TRUE)
+  data_fitted_train &lt;- as.matrix(data_train)  %*% as.matrix(spline_basis)
+  data_fitted_train &lt;- data.table(data_fitted_train)
+  data_fitted_train[,y := y_train]
+  
+  data_fitted_test &lt;- as.matrix(data_test)  %*% as.matrix(spline_basis)
+  data_fitted_test &lt;- data.table(data_fitted_test)
+  data_fitted_test[,y := y_test]
+  
+  model &lt;- glm(y~., data = data_fitted_train, family = binomial)
+  
+  #calculate the metrics for the left plot:
+  test &lt;- predict(model, newdata = data_fitted_test, type = &quot;response&quot;)
+  test_calc_log &lt;- data.table(test = test, y = y_test)
+  llic_train &lt;- model$deviance/1000
+  aic_fitted &lt;- model$aic/1000
+  llic_test &lt;- -2*sum(test_calc_log$y*log(test_calc_log$test)+(1-test_calc_log$y)*log(1-test))/(dim(data_test)[1])
+
+  #do some data processing and calculate the metrics for the right plot:
+  data_fitted_train[,y_fitted := predict(model, type = &quot;response&quot;)]
+  data_fitted_train[,y_fitted_10 := mapply(function(x){ifelse(x&gt;=0.5,1,0)},x=y_fitted)]
+  binary_loss_train &lt;- sum(abs(data_fitted_train[,y]-data_fitted_train[,y_fitted_10]))/1000
+  
+  data_fitted_test[,y_fitted := predict(model, newdata=data_fitted_test,type = &quot;response&quot;)]
+  data_fitted_test[,y_fitted_10 := mapply(function(x){ifelse(x&gt;=0.5,1,0)},x=y_fitted)]
+  binary_loss_test &lt;- sum(abs(data_fitted_test[,y]-data_fitted_test[,y_fitted_10]))/(dim(data_fitted_test)[1])
+  
+  binary_aic &lt;- binary_loss_train + length(model$coefficients)/(dim(data_fitted_train)[1])
+  
+  metrics &lt;- rbind(metrics, list(aic_fitted,llic_train,llic_test,binary_aic,binary_loss_train,binary_loss_test), use.names = FALSE)
+}
+
+
+metrics[,count := c(1,2,3,4,5,6,7,8)]
+
+#do the plotting:
+
+
+par(mfrow=c(1,2))
+plot(metrics$count, metrics$aiclog, &quot;o&quot;, col=&quot;darkgreen&quot;,main=TeX(&#39;Log-likelihood loss&#39;),xlab=TeX(&#39;Number of basis functions&#39;),ylab=TeX(&#39;Log-likelihood&#39;),ylim=c(0.35,2.65),xaxt=&quot;n&quot;)
+axis(side=1, at=c(1,2,3,4,5,6,7,8), labels = FALSE)
+
+text(x=c(1,2,3,4,5,6,7,8),  par(&quot;usr&quot;)[3], 
+     labels = n_basis, srt = 0, pos = 1, xpd = TRUE)
+lines(metrics$count,metrics$llic,&quot;o&quot;, col = &quot;orange&quot;)
+
+lines(metrics$count,metrics$llic_test,&quot;o&quot;,col=&quot;deepskyblue&quot;)
+legend(&quot;topleft&quot;,legend = c(&quot;Train&quot;,&quot;Test&quot;,&quot;AIC&quot;), col=c(&quot;orange&quot;,&quot;deepskyblue&quot;,&quot;darkgreen&quot;),lty=1,lwd=1)
+
+
+plot(metrics$count,metrics$aicbin,&quot;o&quot;,col=&quot;darkgreen&quot;,main=TeX(&#39;0-1 Loss&#39;),xlab=TeX(&#39;Number of basis functions&#39;),ylab=TeX(&#39;Misclassification Error&#39;),ylim=c(0.075,0.365),xaxt=&quot;n&quot;)
+axis(side=1, at=c(1,2,3,4,5,6,7,8), labels = FALSE)
+
+text(x=c(1,2,3,4,5,6,7,8),  par(&quot;usr&quot;)[3], 
+     labels = n_basis, srt = 0, pos = 1, xpd = TRUE)
+lines(metrics$count,metrics$lbin,&quot;o&quot;, col = &quot;orange&quot;)
+
+lines(metrics$count,metrics$lbin_test,&quot;o&quot;,col=&quot;deepskyblue&quot;)</code></pre>
+<p><img src="/blogs/ds_projects_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+</div>
+<div id="boosting-how-many-iterations-are-required" class="section level1">
+<h1>Boosting: how many iterations are required?</h1>
+<p>We all know that boosting is an iterative algorithm which steps from the original data to residuals of the previous step, and continues on an on. It is quite obvious that the positive effect of increasing model complexity, hence, should be diminishing. Indeed, there is less and less of meaningful information left in the data, and more noise starts to appear. But how does it all look in a graph?
+Here, we have an example of <strong>6-fold CV error</strong> of a boosting algorithm used for prediction of some target variable in a simulated dataset:</p>
+<pre class="r"><code>library(caret)
+library(rpart)
+library(data.table)
+library(tree)
+library(latex2exp)
+library(gbm)
+set.seed(2)
+
+
+generate_data &lt;- function(N_total,negative){
+   X &lt;- rnorm(N_total*10)
+   X &lt;- matrix(data = X, nrow = N_total, ncol = 10)
+   data &lt;- as.data.table(X)
+   data[,y := ifelse(rowSums(data**2) &gt;= qchisq(p=0.5,df=10),1,negative)]
+   data[,index_number := 1:dim(data)[1]]
+   return(data)
+}
+N_total &lt;- 12000
+N_trees &lt;- 400
+tree_error_corr &lt;- 0.02
+data &lt;- generate_data(N_total,0)
+data[,index_number := NULL]
+
+N_loocv &lt;- 2001
+step_loocv &lt;- (N_loocv-1)/1000
+data[, y := as.factor(y)]
+#since we have 2000 training observations out of 12000 observations in total, the natural choice would be to set K=6
+train_control &lt;- trainControl(method = &quot;cv&quot;, number = 6)
+model_cv &lt;- train(y~., data = data, method = &quot;gbm&quot;, distribution = &quot;adaboost&quot;, metric = &quot;Accuracy&quot;, trControl = train_control, tuneGrid = expand.grid(n.trees = seq(1,N_loocv,by=step_loocv),interaction.depth=1,shrinkage=0.95,n.minobsinnode=10))
+ 
+vals_cv &lt;- data.table(test_error = 1-model_cv$results$Accuracy, grid = seq(1,N_loocv, by=step_loocv))
+
+plot(vals_cv[grid&gt;=200,grid], vals_cv[grid&gt;=200,test_error], type=&quot;l&quot;, xlab = TeX(&quot;Boosting Iterations&quot;), ylab = TeX(&quot;6-fold CV estimate of test error&quot;), col = &quot;orange&quot;, main = TeX(&quot;6-fold CV estimate of test error&quot;))
+text(850,0.040,&quot;Minimum point of CV-estimated test error&quot;, pos=3, cex=0.85)
+ 
+abline(v=vals_cv[test_error==min(test_error),grid],lty=&quot;dotted&quot;)
+abline(h=vals_cv[test_error==min(test_error),test_error],lty=&quot;dotted&quot;)</code></pre>
+<p><img src="/blogs/ds_projects_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>So, minimum CV error is attained for the following number of parameters of <code>boosting</code> algorithm:</p>
+<pre class="r"><code>print(c(vals_cv[test_error==min(test_error),grid],&quot;iterations&quot;))</code></pre>
+<pre><code>## [1] &quot;1201&quot;       &quot;iterations&quot;</code></pre>
+</div>
