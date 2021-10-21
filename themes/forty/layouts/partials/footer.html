@@ -1,16 +1,20 @@
-{{ "<!-- Footer -->" | safeHTML}}
-    <footer id="footer">
-        <div class="inner">
-            <ul class="icons">
-                {{ range .Site.Params.Footer.social }}
-                    <li><a href="{{ .url | safeHTML }}" class="icon alt {{ .icon }}" target="_blank"><span class="label">{{ .label }}</span></a></li>
-                {{ end }}
-            </ul>
-            <ul class="copyright">
-                <li>&copy; {{ .Site.Params.Footer.copyright }}</li>
-                {{ range .Site.Params.Footer.quicklinks}}
-                <li>{{ .text }} <a href="{{ .url | safeHTML }}">{{ .alt }}</a></li>
-                {{ end }}
-            </ul>
-        </div>
-    </footer>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2022.6">
+  <style type="text/css">
+    li.li1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none}
+    ul.ul1 {list-style-type: disc}
+  </style>
+</head>
+<body>
+<ul class="ul1">
+  <li class="li1"><span class="s1"></span><br></li>
+</ul>
+</body>
+</html>
